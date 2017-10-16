@@ -3,6 +3,49 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+### The Model
+
+#### state
+
+* `x, y` - position of the vehicle.
+* `psi` The orientation of the vehicle.
+* `v` - velocity.
+* `cte` - cross-track error.
+* `epsi` - error of The orientation.
+
+#### actuators
+
+* `delta` - steering angle
+* `a` -  throttle
+
+#### equations
+
+<img src="https://latex.codecogs.com/gif.latex?x_{%E2%80%8Bt+1}%E2%80%8B%E2%80%8B=x_{t}+v_{t}{\times}\cos(\psi_{%E2%80%8Bt}){\times}dt"/>
+<img src="https://latex.codecogs.com/gif.latex?y_{%E2%80%8Bt+1}%E2%80%8B%E2%80%8B=y_{t}+v_{t}{\times}\sin(\psi_{%E2%80%8Bt}){\times}dt"/>
+<img src="https://latex.codecogs.com/gif.latex?\psi_{t+1}=\psi_{t}+\frac{v_t}{L_f}{\times}\delta_{t}{\times}dt"/>
+<img src="https://latex.codecogs.com/gif.latex?v_{%E2%80%8Bt+1}%E2%80%8B=v_t+a_t{\times}dt"/>
+<img src="https://latex.codecogs.com/gif.latex?cte_{%E2%80%8Bt+1}=f(x_t)-{y_t}+(v_%E2%80%8Bt{\times}\sin(e\psi_t){\times}dt)"/>
+<img src="https://latex.codecogs.com/gif.latex?e\psi_{t+1}=\psi_t-{\psi}des_t+(\frac{v_t}{L_f}{\times}{\delta_t}{\times}dt)"/>
+
+
+### Timestep Length and Elapsed Duration (N & dt)
+
+It is said that it is good to take about 2 seconds between cars.
+I decided that T would be 1.5 seconds.
+(When it was set to 2 seconds, I wandered because I can not see the front, so I adjusted it.)
+According to the latency, dt was set to 0.1 second. Therefore, N is 15.
+
+### Polynomial Fitting and MPC Preprocessing
+
+wayppints are transformed into the vehicle system and for the polynomial fitting of the vehicle an approximation with a 3rd order polynomial for the trajectory was used.
+Also, by correcting the position of the vehicle by subtracting x from ptsx and subtracting y from ptsy.
+
+### Model Predictive Control with Latency
+
+Latency introduced to simulate driver delay. By incorporating latency in the model, it becomes a more practical model.
+
+---
+
 ## Dependencies
 
 * cmake >= 3.5
