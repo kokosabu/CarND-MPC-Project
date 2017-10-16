@@ -91,6 +91,8 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          double steer_value = j[1]["steering_angle"];
+          double throttle_value = j[1]["throttle"];
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -98,18 +100,54 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-          double steer_value;
-          double throttle_value;
+          const double cos_psi = cos(-psi);
+          const double sin_psi = sin(-psi);
+          for (int i = 0; i < ptsx.size(); i++ )
+          {
+            const double diff_x = ptsx[i] - px;
+            const double diff_y = ptsy[i] - py;
+            ptsx[i] = diff_x*cos_psi - diff_y*sin_psi;
+            ptsy[i] = diff_x*sin_psi + diff_y*cos_psi;
+          }
+
+          Eigen::Map<Eigen::VectorXd> ptsx_trans(ptsx.data(), ptsx.size());
+          Eigen::Map<Eigen::VectorXd> ptsy_trans(ptsy.data(), ptsy.size());
+
+          //auto coeffs = polyfit(ptsx_trans, ptsy_trans, ptsx.size());
+          auto coeffs = polyfit(ptsx_trans, ptsy_trans, 3);
+          double cte  = polyeval(coeffs, 0);
+          double epsi = -atan(coeffs[1]);
+
+          const double delay = 0.1;
+
+          double delay_x    = v * cos(0) * delay;
+          double delay_y    = v * sin(0) * delay;
+          double delay_psi  = -v * steer_value / Lf * delay;
+          double delay_v    = v + throttle_value * delay;
+          double delay_cte  = cte + v * sin(epsi) * delay;
+          double delay_epsi = epsi - v * steer_value / Lf * delay;
+
+          Eigen::VectorXd state(6);
+          state << delay_x, delay_y, delay_psi, delay_v, delay_cte, delay_epsi;
+          auto vars = mpc.Solve(state, coeffs);
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = throttle_value;
+          msgJson["steering_angle"] = vars[0] * -1;
+          msgJson["throttle"]       = vars[1];
 
           //Display the MPC predicted trajectory 
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
+          for (int i = 2; i < vars.size(); i++){
+              if(i % 2 == 0){
+                  mpc_x_vals.push_back(vars[i]);
+              }
+              else{
+                  mpc_y_vals.push_back(vars[i]);
+              }
+          }
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
@@ -120,6 +158,10 @@ int main() {
           //Display the waypoints/reference line
           vector<double> next_x_vals;
           vector<double> next_y_vals;
+          for(int i = 0; i<ptsx.size();i++){
+              next_x_vals.push_back(ptsx[i]);
+              next_y_vals.push_back(ptsy[i]);
+          }
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
@@ -143,9 +185,9 @@ int main() {
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
-        // Manual driving
-        std::string msg = "42[\"manual\",{}]";
-        ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+          // Manual driving
+          std::string msg = "42[\"manual\",{}]";
+          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
     }
   });
@@ -154,32 +196,32 @@ int main() {
   // program
   // doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data,
-                     size_t, size_t) {
-    const std::string s = "<h1>Hello world!</h1>";
-    if (req.getUrl().valueLength == 1) {
-      res->end(s.data(), s.length());
-    } else {
-      // i guess this should be done more gracefully?
-      res->end(nullptr, 0);
-    }
-  });
+              size_t, size_t) {
+          const std::string s = "<h1>Hello world!</h1>";
+          if (req.getUrl().valueLength == 1) {
+          res->end(s.data(), s.length());
+          } else {
+          // i guess this should be done more gracefully?
+          res->end(nullptr, 0);
+          }
+          });
 
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
-    std::cout << "Connected!!!" << std::endl;
-  });
+          std::cout << "Connected!!!" << std::endl;
+          });
 
   h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
-                         char *message, size_t length) {
-    ws.close();
-    std::cout << "Disconnected" << std::endl;
-  });
+              char *message, size_t length) {
+          ws.close();
+          std::cout << "Disconnected" << std::endl;
+          });
 
   int port = 4567;
   if (h.listen(port)) {
-    std::cout << "Listening to port " << port << std::endl;
+      std::cout << "Listening to port " << port << std::endl;
   } else {
-    std::cerr << "Failed to listen to port" << std::endl;
-    return -1;
+      std::cerr << "Failed to listen to port" << std::endl;
+      return -1;
   }
   h.run();
 }
